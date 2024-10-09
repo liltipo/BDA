@@ -217,7 +217,7 @@ def menu():
 #Cuando no especifica que tipo de relacion de amistad es, se asume que unidireccional desde el pony a sus amigos (->)
 
 if __name__ == "__main__":
-    db = PonyDatabase("bolt://localhost:7687", "neo4j", "pony1234", "ponydb")
+    db = PonyDatabase("bolt://localhost:7687", "neo4j", "12345678", "ponydb")
     menu()
 
     db.close()

@@ -76,7 +76,7 @@ class PonyDatabase:
             MERGE (rainbow)-[:AMIGOS]->(pinkie)
             MERGE (pinkie)-[:AMIGOS]->(rainbow)
             MERGE (celestia)-[:AMIGOS]->(luna)
-            MERGE (luna)-[:AMIGOS]->(celestia)ght
+            MERGE (luna)-[:AMIGOS]->(celestia)
             MERGE (cadance)-[:AMIGOS]->(shining)
             MERGE (scootaloo)-[:AMIGOS]->(applebloom)
             MERGE (applebloom)-[:AMIGOS]->(scootaloo)
