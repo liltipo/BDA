@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "cassandra-driver": "^4.7.2",
-    "inquirer": "^12.0.1"
+    "inquirer": "^8.2.6"
   }
 }
