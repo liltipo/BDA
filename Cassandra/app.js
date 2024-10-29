@@ -1,13 +1,13 @@
 const inquirer = require('inquirer');
-const { createKeyspace, createTable } = require('./db/setup');
-const { addStamp, searchStamps, addTimeValue, updateTimeValue } = require('./services/stampService');
+const { createKeyspace, createTable, dropTable } = require('./db/setup');
+const { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller } = require('./services/stampService');
 
 async function mainMenu() {
     const answer = await inquirer.prompt({
       name: 'action',
       type: 'list',
       message: '¿Qué deseas hacer?',
-      choices: ['Agregar estampilla', 'Buscar estampillas', 'Agregar time value', 'Modificar time value', 'Salir'],
+      choices: ['Agregar estampilla', 'Buscar estampillas', 'Buscar estampillas por vendedor', 'Agregar time value', 'Modificar time value', 'Salir'],
     });
 
   if (answer.action === 'Agregar estampilla') {
@@ -45,45 +45,37 @@ async function mainMenu() {
     const condition = searchParams.condition || null;
   
     const results = await searchStamps(searchParams.year, searchParams.country, tags, condition);
-    
-    // Convertir stamp_id a cadena y formatear time_value
+  
+    // Convertir stamp_id a cadena y mostrar el time_value
     results.forEach(result => {
       result.stamp_id = result.stamp_id.toString();
       
-      // Si existe time_value, formatearlo
       if (result.time_value) {
         const formattedTimeValue = {};
         
-        // Formatear cada clave y valor de time_value
+        // Mostrar cada clave y valor de time_value
         Object.entries(result.time_value).forEach(([date, value]) => {
-          // Formatear la fecha
-          const formattedDate = new Date(date).toDateString().slice(4);  // Ejemplo: "Dec 15 2020"
-          
-          // Redondear el valor a 2 decimales
-          const formattedValue = value.toFixed(2);
-          
-          formattedTimeValue[formattedDate] = formattedValue;
+          formattedTimeValue[date] = value.toFixed(2);  // Redondear el valor a 2 decimales
         });
         
         result.time_value = formattedTimeValue;
       }
     });
-    
+  
     console.log('Resultados de la búsqueda:');
     console.table(results);
     await mainMenu(); // Vuelve al menú principal
-  }  
+  }   
 
   if (answer.action === 'Agregar time value') {
     const answers = await inquirer.prompt([
       { name: 'stampId', message: 'ID de la estampilla:' },
-      { name: 'date', message: 'Fecha (YYYY-MM-DD):' },
+      { name: 'date', message: 'Fecha (DD-MM-YYYY):' },
       { name: 'value', message: 'Valor (float):', type: 'number' }
     ]);
   
-    // Crear un objeto timeValue con la fecha y el valor
     const timeValue = {
-      date: new Date(answers.date).toISOString(),  // Convertir la fecha a timestamp compatible
+      date: answers.date,  // Usar la fecha en formato string
       value: answers.value
     };
   
@@ -91,20 +83,33 @@ async function mainMenu() {
     await mainMenu();
   }
   
-
   if (answer.action === 'Modificar time value') {
     const answers = await inquirer.prompt([
       { name: 'stampId', message: 'ID de la estampilla:' },
-      { name: 'date', message: 'Fecha (YYYY-MM-DD) del time value a modificar:' },
+      { name: 'date', message: 'Fecha (DD-MM-YYYY) del time value a modificar:' },
       { name: 'newValue', message: 'Nuevo valor (float):', type: 'number' }
     ]);
   
-    // Convertir la fecha a formato ISO para asegurar coincidencia exacta
-    const formattedDate = new Date(answers.date).toISOString();
-  
-    await updateTimeValue(answers.stampId, formattedDate, answers.newValue);
+    await updateTimeValue(answers.stampId, answers.date, answers.newValue);
     await mainMenu();
   }
+
+  if (answer.action === 'Buscar estampillas por vendedor') {
+    const sellerAnswer = await inquirer.prompt([
+      { name: 'seller', message: 'Ingrese el nombre del vendedor:' }
+    ]);
+  
+    const results = await getStampsBySeller(sellerAnswer.seller);
+    
+    // Convertir stamp_id a cadena y mostrar los resultados
+    results.forEach(result => {
+      result.stamp_id = result.stamp_id.toString();
+    });
+  
+    console.log('Resultados de la búsqueda por vendedor:');
+    console.table(results);
+    await mainMenu(); // Vuelve al menú principal
+  }  
 
   if (answer.action === 'Salir') {
     console.log("Saliendo...");
@@ -113,6 +118,7 @@ async function mainMenu() {
 }
 
 async function startApp() {
+  /* await dropTable(); */
   await createKeyspace();
   await createTable();
   await mainMenu();

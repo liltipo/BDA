@@ -60,69 +60,54 @@ async function searchStamps(year, country, tags = [], condition = null) {
   }
 }
 
-// Función para agregar un nuevo time value
+// Función para agregar un nuevo time value (usando string en formato DD-MM-YYYY)
 async function addTimeValue(stampId, timeValue) {
-    const query = `
-      UPDATE librepost.stamps 
-      SET time_value = time_value + ?
-      WHERE stamp_id = ?
-    `;
-    
-    try {
-      // En lugar de usar un Map, construimos un objeto simple que represente el mapa en Cassandra
-      const timeValueMap = { [timeValue.date]: timeValue.value };
-      
-      await client.execute(query, [timeValueMap, stampId], { prepare: true });
-      console.log('Nuevo time value agregado.');
-    } catch (err) {
-      console.error('Error agregando el time value:', err);
-    }
-  }  
-  
-  
-// Función para modificar un time value existente
-async function updateTimeValue(stampId, date, newValue) {
-    // Convertir la fecha a formato ISO para la comparación
-    const formattedDate = new Date(date).toISOString();
-  
-    // Primero, recuperamos los time_value existentes
-    const getTimeValueQuery = `
-      SELECT time_value 
-      FROM librepost.stamps 
-      WHERE stamp_id = ?
-    `;
-  
-    try {
-      const result = await client.execute(getTimeValueQuery, [stampId], { prepare: true });
-      
-      if (result.rows.length > 0 && result.rows[0].time_value) {
-        const timeValueMap = result.rows[0].time_value;
-  
-        // Comprobar si la fecha que queremos modificar ya existe
-        const existingDate = Object.keys(timeValueMap).find(key => {
-          return new Date(key).toISOString() === formattedDate;
-        });
-  
-        if (existingDate) {
-          // Actualizamos el time_value existente
-          const updateQuery = `
-            UPDATE librepost.stamps 
-            SET time_value[?] = ? 
-            WHERE stamp_id = ?
-          `;
-          await client.execute(updateQuery, [existingDate, newValue, stampId], { prepare: true });
-          console.log('Time value actualizado.');
-        } else {
-          console.log('No se encontró la fecha específica para actualizar.');
-        }
-      } else {
-        console.log('No se encontraron time values existentes.');
-      }
-    } catch (err) {
-      console.error('Error actualizando el time value:', err);
-    }
+  const query = `
+    UPDATE librepost.stamps 
+    SET time_value = time_value + ?
+    WHERE stamp_id = ?
+  `;
+
+  try {
+    const timeValueMap = { [timeValue.date]: timeValue.value };  // Usar la fecha en formato DD-MM-YYYY
+    await client.execute(query, [timeValueMap, stampId], { prepare: true });
+    console.log('Nuevo time value agregado.');
+  } catch (err) {
+    console.error('Error agregando el time value:', err);
   }
-  
-  
-module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue };
+}
+
+// Función para modificar un time value existente (usando string en formato DD-MM-YYYY)
+async function updateTimeValue(stampId, date, newValue) {
+  const query = `
+    UPDATE librepost.stamps 
+    SET time_value[?] = ? 
+    WHERE stamp_id = ?
+  `;
+
+  try {
+    await client.execute(query, [date, newValue, stampId], { prepare: true });
+    console.log('Time value actualizado.');
+  } catch (err) {
+    console.error('Error actualizando el time value:', err);
+  }
+}
+
+// Función para buscar estampillas por vendedor
+async function getStampsBySeller(seller) {
+  const query = `
+    SELECT title, stamp_id, status, seller 
+    FROM librepost.stamps 
+    WHERE seller = ? ALLOW FILTERING
+  `;
+
+  try {
+    const result = await client.execute(query, [seller], { prepare: true });
+    return result.rows;
+  } catch (err) {
+    console.error('Error buscando estampillas por vendedor:', err);
+  }
+}
+
+module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller };
   
