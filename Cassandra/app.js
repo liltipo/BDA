@@ -1,13 +1,13 @@
 const inquirer = require('inquirer');
-const { createKeyspace, createTable, dropTable } = require('./db/setup');
-const { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller } = require('./services/stampService');
+const { createKeyspace, createTable, dropTable/* , createMaterializedView */, createSAIIndex } = require('./db/setup');
+const { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange } = require('./services/stampService');
 
 async function mainMenu() {
     const answer = await inquirer.prompt({
       name: 'action',
       type: 'list',
       message: '¿Qué deseas hacer?',
-      choices: ['Agregar estampilla', 'Buscar estampillas', 'Buscar estampillas por vendedor', 'Agregar time value', 'Modificar time value', 'Salir'],
+      choices: ['Agregar estampilla', 'Buscar estampillas', 'Buscar estampillas por vendedor', 'Buscar estampilla más cara por condición', 'Buscar estampilla más barata por status' , 'Agregar time value', 'Modificar time value', 'Salir'],
     });
 
   if (answer.action === 'Agregar estampilla') {
@@ -110,17 +110,67 @@ async function mainMenu() {
     console.table(results);
     await mainMenu(); // Vuelve al menú principal
   }  
+  
+  if (answer.action === 'Buscar estampilla más cara por condición') {
+    const yearAnswer = await inquirer.prompt([
+      { name: 'year', message: 'Ingrese el año:' }
+    ]);
+  
+    const results = await getMostExpensiveStampsByYear(yearAnswer.year);
+    
+    // Convertir stamp_id a cadena
+    results.forEach(result => {
+      if (result) {
+        result.stamp_id = result.stamp_id.toString();
+      }
+    });
+  
+    console.log('Resultados de la búsqueda:');
+    console.table(results.filter(result => result !== null)); // Filtrar resultados vacíos
+    await mainMenu(); // Vuelve al menú principal
+  }  
+
+  if (answer.action === 'Buscar estampilla más barata por status') {
+    const yearRange = await inquirer.prompt([
+      { name: 'startYear', message: 'Ingrese el año de inicio:' },
+      { name: 'endYear', message: 'Ingrese el año de término:' }
+    ]);
+  
+    const results = await getCheapestStampsByStatusAndYearRange(yearRange.startYear, yearRange.endYear);
+    
+    if (results && results.length > 0) {
+      // Convertir la ID a cadena y redondear el valor de face_value
+      results.forEach(result => {
+        if (result) {
+          result.stamp_id = result.stamp_id.toString(); // Convertir stamp_id a cadena
+          result.face_value = result.face_value.toFixed(2); // Redondear face_value a 2 decimales
+        }
+      });
+  
+      console.log('Resultados de la búsqueda:');
+      console.table(results.filter(result => result !== null)); // Filtrar resultados vacíos
+    } else {
+      console.log('No se encontraron estampillas para el rango de años especificado.');
+    }
+    
+    await mainMenu(); // Vuelve al menú principal
+  }
+      
 
   if (answer.action === 'Salir') {
     console.log("Saliendo...");
     process.exit(0);
+  
   }
+  
 }
 
 async function startApp() {
   /* await dropTable(); */
   await createKeyspace();
   await createTable();
+  /* await createMaterializedView(); */
+  await createSAIIndex();
   await mainMenu();
 }
 

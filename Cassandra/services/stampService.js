@@ -109,5 +109,73 @@ async function getStampsBySeller(seller) {
   }
 }
 
-module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller };
+// Función para buscar la estampilla más cara por condición y año sin usar vista materializada
+async function getMostExpensiveStampsByYear(year) {
+  const conditions = ['nuevo', 'usado', 'dañado'];  // Las tres condiciones
+  const queries = conditions.map(condition => {
+    return client.execute(
+      `
+        SELECT stamp_id, title, condition, face_value
+        FROM librepost.stamps
+        WHERE year = ? AND condition = ?
+        ALLOW FILTERING
+      `,
+      [year, condition],
+      { prepare: true }
+    );
+  });
+
+  try {
+    const results = await Promise.all(queries);
+    // Para cada condición, seleccionamos la estampilla más cara
+    const mostExpensiveStamps = results.map(result => {
+      const stamps = result.rows;
+      if (stamps.length > 0) {
+        // Encontrar la estampilla con mayor face_value
+        return stamps.reduce((prev, current) => (prev.face_value > current.face_value ? prev : current));
+      }
+      return null;  // Si no hay estampillas para esa condición
+    });
+    return mostExpensiveStamps;
+  } catch (err) {
+    console.error('Error buscando las estampillas más caras:', err);
+  }
+}
+
+// Función para buscar la estampilla más barata por status en un rango de años
+async function getCheapestStampsByStatusAndYearRange(startYear, endYear) {
+  const statuses = ['disponible', 'vendido', 'reservado'];  // Los tres estados
+  const queries = statuses.map(status => {
+    return client.execute(
+      `
+        SELECT stamp_id, title, status, face_value
+        FROM librepost.stamps
+        WHERE year >= ? AND year <= ? AND status = ?
+        ALLOW FILTERING;
+      `,
+      [startYear, endYear, status],
+      { prepare: true }
+    );
+  });
+
+  try {
+    const results = await Promise.all(queries);
+    // Para cada estado, seleccionamos la estampilla más barata ordenando los resultados en la aplicación
+    const cheapestStamps = results.map(result => {
+      const stamps = result.rows;
+      if (stamps.length > 0) {
+        // Encontrar la estampilla con menor face_value
+        return stamps.reduce((prev, current) => (prev.face_value < current.face_value ? prev : current));
+      }
+      return null;  // Si no hay estampillas para ese estado
+    });
+    return cheapestStamps;
+  } catch (err) {
+    console.error('Error buscando las estampillas más baratas:', err);
+    return [];  // Devolver array vacío en caso de error
+  }
+}
+
+
+module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange };
   

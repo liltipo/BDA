@@ -46,4 +46,42 @@ async function createTable() {
   await client.execute(query);
 }
 
-module.exports = { createKeyspace, createTable, dropTable };
+/* async function createMaterializedView() {
+  const query = `
+    CREATE MATERIALIZED VIEW IF NOT EXISTS librepost.stamps_by_condition_year AS
+    SELECT stamp_id, title, condition, year, face_value
+    FROM librepost.stamps
+    WHERE condition IS NOT NULL AND year IS NOT NULL AND face_value IS NOT NULL AND stamp_id IS NOT NULL
+    PRIMARY KEY ((condition, year), face_value, stamp_id)
+    WITH CLUSTERING ORDER BY (face_value DESC);
+  `;
+  try {
+    await client.execute(query);
+    console.log('Vista materializada "stamps_by_condition_year" creada.');
+  } catch (err) {
+    console.error('Error creando la vista materializada:', err);
+  }
+} */
+
+  async function createSAIIndex() {
+    const query = `
+      CREATE CUSTOM INDEX IF NOT EXISTS year_status_sai ON librepost.stamps (year)
+      USING 'StorageAttachedIndex';
+    `;
+    
+    const query2 = `
+      CREATE CUSTOM INDEX IF NOT EXISTS status_sai ON librepost.stamps (status)
+      USING 'StorageAttachedIndex';
+    `;
+  
+    try {
+      await client.execute(query);
+      await client.execute(query2);
+      console.log('Índices SAI "year" y "status" creados.');
+    } catch (err) {
+      console.error('Error creando los índices SAI:', err);
+    }
+  }
+  
+
+module.exports = { createKeyspace, createTable, dropTable/* , createMaterializedView */, createSAIIndex };
