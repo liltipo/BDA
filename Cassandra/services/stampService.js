@@ -176,6 +176,47 @@ async function getCheapestStampsByStatusAndYearRange(startYear, endYear) {
   }
 }
 
+// Función para simular la compra de una estampilla
+async function buyStamp(title, sellerId) {
+  try {
+    // Primero verificar si la estampilla está disponible
+    const query = `
+      SELECT stamp_id, status, transaction_history
+      FROM librepost.stamps
+      WHERE title = ? AND seller = ? ALLOW FILTERING;
+    `;
+    const result = await client.execute(query, [title, sellerId], { prepare: true });
+    
+    if (result.rowLength === 0) {
+      console.log('Estampilla no encontrada o no pertenece al vendedor especificado.');
+      return;
+    }
 
-module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange };
+    const stamp = result.rows[0];
+    
+    if (stamp.status !== 'disponible') {
+      console.log('Estampilla no disponible para la compra.');
+      return;
+    }
+
+    // Actualizar los datos en un BATCH
+    const batchQuery = `
+      BEGIN BATCH
+      UPDATE librepost.stamps SET status = 'vendido' WHERE stamp_id = ?;
+      UPDATE librepost.stamps SET seller = 'D' WHERE stamp_id = ?;
+      UPDATE librepost.stamps SET transaction_history = transaction_history + [{toTimestamp(now()), 'compra'}] WHERE stamp_id = ?;
+      APPLY BATCH;
+    `;
+
+    // Ejecutar el BATCH
+    await client.execute(batchQuery, [stamp.stamp_id, stamp.stamp_id, stamp.stamp_id], { prepare: true });
+    console.log('Compra realizada con éxito.');
+  } catch (err) {
+    console.error('Error en la compra de la estampilla:', err);
+  }
+}
+
+
+
+module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange, buyStamp };
   

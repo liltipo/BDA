@@ -1,13 +1,13 @@
 const inquirer = require('inquirer');
 const { createKeyspace, createTable, dropTable/* , createMaterializedView */, createSAIIndex } = require('./db/setup');
-const { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange } = require('./services/stampService');
+const { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange, buyStamp } = require('./services/stampService');
 
 async function mainMenu() {
     const answer = await inquirer.prompt({
       name: 'action',
       type: 'list',
       message: '¿Qué deseas hacer?',
-      choices: ['Agregar estampilla', 'Buscar estampillas', 'Buscar estampillas por vendedor', 'Buscar estampilla más cara por condición', 'Buscar estampilla más barata por status' , 'Agregar time value', 'Modificar time value', 'Salir'],
+      choices: ['Agregar estampilla', 'Buscar estampillas', 'Buscar estampillas por vendedor', 'Buscar estampilla más cara por condición', 'Buscar estampilla más barata por status', 'Comprar estampilla', 'Agregar time value', 'Modificar time value', 'Salir'],
     });
 
   if (answer.action === 'Agregar estampilla') {
@@ -155,7 +155,16 @@ async function mainMenu() {
     
     await mainMenu(); // Vuelve al menú principal
   }
-      
+
+  if (answer.action === 'Comprar estampilla') {
+    const purchaseDetails = await inquirer.prompt([
+      { name: 'title', message: 'Ingrese el título de la estampilla:' },
+      { name: 'sellerId', message: 'Ingrese el nombre del vendedor:' }
+    ]);
+  
+    await buyStamp(purchaseDetails.title, purchaseDetails.sellerId);
+    await mainMenu(); // Vuelve al menú principal
+  }     
 
   if (answer.action === 'Salir') {
     console.log("Saliendo...");
