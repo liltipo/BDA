@@ -22,20 +22,18 @@ async function addStamp(stampData) {
 // Función para buscar estampillas con filtros
 async function searchStamps(year, country, tags = [], condition = null) {
   let query = `
-    SELECT title, stamp_id, status, time_value 
+    SELECT title, stamp_id, status, time_value
     FROM librepost.stamps 
     WHERE year = ? AND country = ?
   `;
 
   let params = [year, country];
 
-  // Filtro opcional por condición
   if (condition) {
     query += ` AND condition = ?`;
     params.push(condition);
   }
 
-  // Filtro opcional por tags (hasta 3)
   if (tags.length > 0) {
     query += ` AND tags CONTAINS ?`;
     params.push(tags[0]);
@@ -49,7 +47,6 @@ async function searchStamps(year, country, tags = [], condition = null) {
     }
   }
 
-  // Agregar ALLOW FILTERING para permitir la ejecución
   query += ` ALLOW FILTERING`;
 
   try {
@@ -59,6 +56,7 @@ async function searchStamps(year, country, tags = [], condition = null) {
     console.error('Error realizando la búsqueda:', err);
   }
 }
+
 
 // Función para agregar un nuevo time value (usando string en formato DD-MM-YYYY)
 async function addTimeValue(stampId, timeValue) {
@@ -160,16 +158,22 @@ async function getCheapestStampsByStatusAndYearRange(startYear, endYear) {
 
   try {
     const results = await Promise.all(queries);
-    // Para cada estado, seleccionamos la estampilla más barata ordenando los resultados en la aplicación
-    const cheapestStamps = results.map(result => {
+    const cheapestStamps = [];
+
+    // Para cada estado, seleccionamos la estampilla más barata
+    results.forEach(result => {
       const stamps = result.rows;
       if (stamps.length > 0) {
         // Encontrar la estampilla con menor face_value
-        return stamps.reduce((prev, current) => (prev.face_value < current.face_value ? prev : current));
+        const cheapestStamp = stamps.reduce((prev, current) => (prev.face_value < current.face_value ? prev : current));
+        cheapestStamps.push(cheapestStamp);  // Agregar la estampilla más barata
       }
-      return null;  // Si no hay estampillas para ese estado
     });
-    return cheapestStamps;
+
+    // Filtrar resultados vacíos
+    const filteredStamps = cheapestStamps.filter(stamp => stamp !== undefined);
+
+    return filteredStamps.length > 0 ? filteredStamps : [];  // Retornar los resultados o una tabla vacía
   } catch (err) {
     console.error('Error buscando las estampillas más baratas:', err);
     return [];  // Devolver array vacío en caso de error
@@ -179,7 +183,7 @@ async function getCheapestStampsByStatusAndYearRange(startYear, endYear) {
 // Función para simular la compra de una estampilla
 async function buyStamp(title, sellerId) {
   try {
-    // Primero verificar si la estampilla está disponible
+    // Verificar si la estampilla está disponible
     const query = `
       SELECT stamp_id, status, transaction_history
       FROM librepost.stamps
@@ -199,24 +203,32 @@ async function buyStamp(title, sellerId) {
       return;
     }
 
+    // Formatear la fecha actual en DD-MM-YYYY
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('es-ES').replace(/\//g, '-');  // Formato DD-MM-YYYY
+
+    // Crear la nueva entrada de transacción como una lista de listas
+    const transactionEntry = [formattedDate, 'compra'];
+
+    // Si ya hay un historial de transacciones, agregar la nueva transacción
+    const newTransactionHistory = stamp.transaction_history ? [...stamp.transaction_history, transactionEntry] : [transactionEntry];
+
     // Actualizar los datos en un BATCH
     const batchQuery = `
       BEGIN BATCH
       UPDATE librepost.stamps SET status = 'vendido' WHERE stamp_id = ?;
       UPDATE librepost.stamps SET seller = 'D' WHERE stamp_id = ?;
-      UPDATE librepost.stamps SET transaction_history = transaction_history + [{toTimestamp(now()), 'compra'}] WHERE stamp_id = ?;
+      UPDATE librepost.stamps SET transaction_history = ? WHERE stamp_id = ?;
       APPLY BATCH;
     `;
 
     // Ejecutar el BATCH
-    await client.execute(batchQuery, [stamp.stamp_id, stamp.stamp_id, stamp.stamp_id], { prepare: true });
+    await client.execute(batchQuery, [stamp.stamp_id, stamp.stamp_id, newTransactionHistory, stamp.stamp_id], { prepare: true });
     console.log('Compra realizada con éxito.');
   } catch (err) {
     console.error('Error en la compra de la estampilla:', err);
   }
 }
 
-
-
-module.exports = { addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange, buyStamp };
+module.exports = { client, addStamp, searchStamps, addTimeValue, updateTimeValue, getStampsBySeller, getMostExpensiveStampsByYear, getCheapestStampsByStatusAndYearRange, buyStamp };
   

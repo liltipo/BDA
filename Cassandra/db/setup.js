@@ -27,7 +27,7 @@ async function dropTable() {
 
 async function createTable() {
   const query = `
-    CREATE TABLE IF NOT EXISTS librepost.stamps (
+      CREATE TABLE IF NOT EXISTS librepost.stamps (
       stamp_id uuid PRIMARY KEY,
       title text,
       country text,
@@ -38,12 +38,13 @@ async function createTable() {
       condition text,
       status text,
       seller text,
-      transaction_history list<frozen<tuple<timestamp, text>>>,
+      transaction_history list<frozen<list<text>>>,
       tags set<text>,
       time_value map<text, float>
     );
   `;
   await client.execute(query);
+  console.log('Tabla "stamps" creada.');
 }
 
 /* async function createMaterializedView() {
